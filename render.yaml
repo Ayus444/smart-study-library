@@ -1,0 +1,43 @@
+services:
+  # ── Backend API ──────────────────────────────────────────────
+  - type: web
+    name: smart-study-library-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false          # Set manually in Render dashboard (use MongoDB Atlas)
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure random value
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_EMAIL
+        value: admin@library.com
+      - key: ADMIN_PASSWORD
+        sync: false          # Set manually — use a strong password
+      - key: FRONTEND_URL
+        sync: false          # Set to your Render frontend URL after deploy
+    healthCheckPath: /api/health
+
+  # ── Frontend ─────────────────────────────────────────────────
+  - type: web
+    name: smart-study-library-app
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: node .next/standalone/server.js
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: NEXT_PUBLIC_API_URL
+        sync: false          # Set to your backend Render URL, e.g. https://smart-study-library-api.onrender.com/api
