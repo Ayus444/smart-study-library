@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Grid3x3, User, X, CheckCircle, Circle } from 'lucide-react'
+import { Grid3x3, X, Check, Plus, Trash2 } from 'lucide-react'
 import AppLayout from '@/components/layout/AppLayout'
 import { AuthProvider } from '@/lib/auth'
 import { seatsAPI, studentsAPI } from '@/lib/api'
+import api from '@/lib/api'
 import toast from 'react-hot-toast'
 
 function AssignModal({ seat, students, onClose, onSaved }: any) {
@@ -32,6 +33,18 @@ function AssignModal({ seat, students, onClose, onSaved }: any) {
     finally { setLoading(false) }
   }
 
+  const deleteSeat = async () => {
+    if (!confirm(`Delete Seat ${seat.seatNumber} permanently?`)) return
+    setLoading(true)
+    try {
+      await api.delete(`/seats/${seat._id}`)
+      toast.success(`Seat ${seat.seatNumber} deleted!`)
+      onSaved(); onClose()
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete')
+    } finally { setLoading(false) }
+  }
+
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal-box p-6 max-w-sm">
@@ -46,7 +59,9 @@ function AssignModal({ seat, students, onClose, onSaved }: any) {
           <div>
             <div className="p-4 rounded-lg mb-4" style={{ background: 'var(--saffron-light)' }}>
               <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{seat.studentId?.name}</div>
-              <div className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>{seat.studentId?.phone} • {seat.studentId?.shift}</div>
+              <div className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                {seat.studentId?.phone} • {seat.studentId?.shift}
+              </div>
               <span className={`badge mt-2 ${seat.studentId?.feeStatus === 'Paid' ? 'badge-paid' : seat.studentId?.feeStatus === 'Overdue' ? 'badge-overdue' : 'badge-pending'}`}>
                 {seat.studentId?.feeStatus}
               </span>
@@ -64,11 +79,73 @@ function AssignModal({ seat, students, onClose, onSaved }: any) {
                 <option key={s._id} value={s._id}>{s.name} ({s.shift})</option>
               ))}
             </select>
-            <button onClick={assign} disabled={!selected || loading} className="btn-primary w-full justify-center disabled:opacity-50">
+            <button onClick={assign} disabled={!selected || loading} className="btn-primary w-full justify-center disabled:opacity-50 mb-3">
               {loading ? 'Assigning...' : 'Assign Student'}
+            </button>
+            <button onClick={deleteSeat} disabled={loading} className="btn-danger w-full justify-center disabled:opacity-50">
+              <Trash2 size={14} /> Delete This Seat
             </button>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+function AddSeatsModal({ currentTotal, onClose, onSaved }: any) {
+  const [count, setCount] = useState(10)
+  const [loading, setLoading] = useState(false)
+
+  const add = async () => {
+    setLoading(true)
+    try {
+      const res = await api.post('/seats/add-more', { count })
+      toast.success(res.data.message)
+      onSaved(); onClose()
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to add seats')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box p-6 max-w-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Add More Seats
+          </h3>
+          <button onClick={onClose}><X size={18} style={{ color: 'var(--text-muted)' }} /></button>
+        </div>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+          Current seats: <strong style={{ color: 'var(--text-primary)' }}>{currentTotal}</strong>
+          <br />New seats will be numbered from <strong style={{ color: 'var(--saffron)' }}>{currentTotal + 1}</strong> onwards.
+        </p>
+        <label className="label">How many seats to add?</label>
+        <input
+          type="number"
+          className="input mb-4"
+          style={{ padding: '0.625rem 0.75rem' }}
+          value={count}
+          min={1} max={200}
+          onChange={e => setCount(parseInt(e.target.value) || 1)}
+        />
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {[5, 10, 20, 50].map(n => (
+            <button key={n} onClick={() => setCount(n)}
+              className={`py-1.5 rounded-lg text-sm font-medium transition-all ${count === n ? 'btn-primary' : 'btn-secondary'}`}>
+              +{n}
+            </button>
+          ))}
+        </div>
+        <div className="p-3 rounded-lg mb-4 text-sm" style={{ background: 'var(--saffron-light)', color: 'var(--saffron-dark)' }}>
+          After adding: <strong>{currentTotal + count} total seats</strong> (Seat {currentTotal + 1} → {currentTotal + count})
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
+          <button onClick={add} disabled={loading || count < 1} className="btn-primary flex-1 justify-center disabled:opacity-50">
+            {loading ? 'Adding...' : `Add ${count} Seats`}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -79,6 +156,7 @@ function SeatsContent() {
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<any>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [filter, setFilter] = useState<'all' | 'available' | 'occupied'>('all')
   const [initializing, setInitializing] = useState(false)
 
@@ -96,7 +174,7 @@ function SeatsContent() {
 
   const initSeats = async () => {
     const n = prompt('How many seats to create?', '50')
-    if (!n) return
+    if (!n || isNaN(parseInt(n))) return
     setInitializing(true)
     try {
       await seatsAPI.initialize(parseInt(n))
@@ -123,27 +201,30 @@ function SeatsContent() {
             {occupied} occupied · {available} available · {seats.length} total
           </p>
         </div>
-        {seats.length === 0 && (
-          <button onClick={initSeats} disabled={initializing} className="btn-primary">
-            {initializing ? 'Creating...' : '+ Initialize Seats'}
-          </button>
-        )}
+        <div className="flex gap-2">
+          {seats.length === 0 ? (
+            <button onClick={initSeats} disabled={initializing} className="btn-primary">
+              {initializing ? 'Creating...' : '+ Initialize Seats'}
+            </button>
+          ) : (
+            <button onClick={() => setShowAddModal(true)} className="btn-primary">
+              <Plus size={15} /> Add Seats
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Legend + Filter */}
       <div className="flex flex-wrap items-center gap-4 animate-in stagger-1">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--green)' }}>
-            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--green-light)', border: '1px solid rgba(45,122,79,0.4)' }} />
-            Available
+            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--green-light)', border: '1px solid rgba(45,122,79,0.4)' }} /> Available
           </div>
           <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--saffron-dark)' }}>
-            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--saffron-light)', border: '1px solid rgba(255,125,15,0.4)' }} />
-            Occupied
+            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--saffron-light)', border: '1px solid rgba(255,125,15,0.4)' }} /> Occupied
           </div>
           <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--red)' }}>
-            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--red-light)', border: '1px solid rgba(192,57,43,0.4)' }} />
-            Overdue
+            <div className="w-3 h-3 rounded-sm" style={{ background: 'var(--red-light)', border: '1px solid rgba(192,57,43,0.4)' }} /> Overdue
           </div>
         </div>
         <div className="ml-auto flex gap-1">
@@ -171,7 +252,6 @@ function SeatsContent() {
         </div>
       ) : (
         <div className="card p-4 animate-in stagger-2">
-          {/* Row Labels */}
           <div className="grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-2">
             {filtered.map((seat) => {
               const isOverdue = seat.isOccupied && seat.studentId?.feeStatus === 'Overdue'
@@ -180,13 +260,12 @@ function SeatsContent() {
                   key={seat._id}
                   onClick={() => setSelected(seat)}
                   title={seat.isOccupied ? `${seat.studentId?.name} (${seat.studentId?.shift})` : `Seat ${seat.seatNumber} - Available`}
-                  className={`aspect-square text-xs font-medium rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200
-                    hover:scale-105 hover:shadow-md
+                  className={`aspect-square text-xs font-medium rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200 hover:scale-105 hover:shadow-md
                     ${seat.isOccupied ? (isOverdue ? 'seat-occupied seat-overdue' : 'seat-occupied') : 'seat-available'}`}
                 >
                   <span className="text-xs font-mono font-bold leading-none">{seat.seatNumber}</span>
                   {seat.isOccupied && (
-                    <span className="text-xs leading-none opacity-80 truncate w-full text-center px-0.5" style={{ fontSize: 9 }}>
+                    <span className="leading-none opacity-80 truncate w-full text-center px-0.5" style={{ fontSize: 9 }}>
                       {seat.studentId?.name?.split(' ')[0]}
                     </span>
                   )}
@@ -197,27 +276,31 @@ function SeatsContent() {
         </div>
       )}
 
-      {/* Stats Bar */}
+      {/* Occupancy bar */}
       {seats.length > 0 && (
         <div className="card p-4 animate-in stagger-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Occupancy</span>
             <span className="text-xs font-bold ml-auto" style={{ color: 'var(--text-primary)' }}>
-              {seats.length > 0 ? Math.round((occupied / seats.length) * 100) : 0}%
+              {Math.round((occupied / seats.length) * 100)}%
             </span>
           </div>
           <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
             <div className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${seats.length > 0 ? (occupied / seats.length) * 100 : 0}%`, background: 'linear-gradient(90deg, var(--saffron), #c74608)' }} />
+              style={{ width: `${(occupied / seats.length) * 100}%`, background: 'linear-gradient(90deg, var(--saffron), #c74608)' }} />
           </div>
+          <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+            💡 Click any seat to assign a student, remove one, or delete the seat
+          </p>
         </div>
       )}
 
       {selected && <AssignModal seat={selected} students={students} onClose={() => setSelected(null)} onSaved={load} />}
+      {showAddModal && <AddSeatsModal currentTotal={seats.length} onClose={() => setShowAddModal(false)} onSaved={load} />}
     </div>
   )
 }
 
 export default function SeatsPage() {
   return <AuthProvider><AppLayout><SeatsContent /></AppLayout></AuthProvider>
-}
+          }
