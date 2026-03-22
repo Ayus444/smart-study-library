@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Search, Filter, Edit2, Trash2, Download, Phone, MapPin, X, User, ChevronDown } from 'lucide-react'
 import AppLayout from '@/components/layout/AppLayout'
 import { AuthProvider } from '@/lib/auth'
@@ -130,6 +131,7 @@ function StudentModal({ student, seats, onClose, onSaved }: any) {
 }
 
 function StudentsContent() {
+  const router = useRouter()
   const [students, setStudents] = useState<any[]>([])
   const [seats, setSeats] = useState<any[]>([])
   const [search, setSearch] = useState('')
@@ -238,7 +240,9 @@ function StudentsContent() {
                         {s.name[0]}
                       </div>
                       <div>
-                        <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{s.name}</div>
+                        <button onClick={() => router.push(`/students/${s._id}`)}
+                          className="font-medium hover:underline text-left transition-opacity hover:opacity-70"
+                          style={{ color: 'var(--saffron)' }}>{s.name}</button>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.idProofType}</div>
                       </div>
                     </div>
@@ -280,4 +284,4 @@ function StudentsContent() {
 
 export default function StudentsPage() {
   return <AuthProvider><AppLayout><StudentsContent /></AppLayout></AuthProvider>
-      }
+}
