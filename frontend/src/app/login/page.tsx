@@ -57,7 +57,7 @@ function LoginForm() {
               <div className="relative">
                 <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  className="input pl-9" placeholder="admin@library.com" required />
+                  className="input" style={{paddingLeft: "2.25rem"}} placeholder="admin@library.com" required />
               </div>
             </div>
             <div>
@@ -65,7 +65,7 @@ function LoginForm() {
               <div className="relative">
                 <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
                 <input type={showPw ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)}
-                  className="input pl-9 pr-9" placeholder="••••••••" required />
+                  className="input" style={{paddingLeft: "2.25rem", paddingRight: "2.25rem"}} placeholder="••••••••" required />
                 <button type="button" onClick={() => setShowPw(s => !s)}
                   className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }}>
                   {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
