@@ -24,6 +24,7 @@ function StudentModal({ student, seats, onClose, onSaved }: any) {
     monthlyFee: student?.monthlyFee || shiftFee['Morning'],
     seatNumber: student?.seatNumber || '',
     notes: student?.notes || '',
+    joinDate: student?.joinDate ? new Date(student.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
   })
   const [photo, setPhoto] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -102,6 +103,24 @@ function StudentModal({ student, seats, onClose, onSaved }: any) {
           <div className="col-span-2">
             <label className="label">Address</label>
             <input className="input" value={form.address} onChange={e => set('address', e.target.value)} placeholder="Flat/House No., Area, City" />
+          </div>
+          <div className="col-span-2 md:col-span-1">
+            <label className="label">Join Date *</label>
+            <input
+              type="date"
+              className="input"
+              style={{padding: '0.625rem 0.75rem'}}
+              value={form.joinDate}
+              max={new Date().toISOString().split('T')[0]}
+              onChange={e => set('joinDate', e.target.value)}
+              required
+            />
+          </div>
+          <div className="col-span-2 md:col-span-1">
+            <label className="label">Due Date</label>
+            <div className="input flex items-center text-sm" style={{padding: '0.625rem 0.75rem', color: 'var(--text-muted)'}}>
+              {form.joinDate ? (() => { const d = new Date(form.joinDate); d.setMonth(d.getMonth()+1); return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); })() : 'Auto-calculated'}
+            </div>
           </div>
           <div className="col-span-2">
             <label className="label">Photo</label>
